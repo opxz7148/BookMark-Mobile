@@ -1,4 +1,4 @@
-package org.classapp.bookmark.core.src.main.java.org.classapp.lib.model
+package org.classapp.bookmark.core.model
 
 data class CollectionEntry (
     val userId: String? = "",

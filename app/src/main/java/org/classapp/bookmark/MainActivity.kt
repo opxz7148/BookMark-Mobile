@@ -1,5 +1,6 @@
 package org.classapp.bookmark
 
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,11 +24,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import org.classapp.bookmark.core.service.AuthTestScript
 import org.classapp.bookmark.ui.theme.BookMarkTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val isDebuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (isDebuggable) {
+            // Run auth test script in background thread to not block UI
+            Thread {
+                AuthTestScript.testBookService(this)
+            }.start()
+        }
+
         enableEdgeToEdge()
         setContent {
             BookMarkTheme {

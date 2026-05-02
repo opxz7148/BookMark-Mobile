@@ -1,4 +1,4 @@
-package org.classapp.bookmark.core.src.main.java.org.classapp.lib.model
+package org.classapp.bookmark.core.model
 
 data class Book (
     val id: String? = "",
@@ -8,7 +8,8 @@ data class Book (
     val numberOfPage: Int? = 0,
     val isbn: String? = "",
     val authors: String? = "",
-    val pubDate: String? = ""
+    val pubDate: String? = "",
+    val genre: String? = ""
 ) {
     private fun getCoverImageURL(size:String): String {
         return "https://covers.openlibrary.org/b/isbn/${this.isbn}-${size}.jpg"
