@@ -39,21 +39,7 @@ class BookMarkApplication : Application() {
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Automatic Firebase initialization failed: ${e.message}")
-                    Log.w(TAG, "Attempting manual initialization with hardcoded config...")
-
-                    // Fallback: Manual configuration as last resort
-                    val options = FirebaseOptions.Builder()
-                        .setProjectId("bookmark-f24d6")
-                        .setApplicationId("1:983319974099:android:42f7c5bc09a7ee7142c426")
-                        .setApiKey("REMOVED")
-                        .setDatabaseUrl("https://bookmark-f24d6.firebasedatabase.app")
-                        .setStorageBucket("bookmark-f24d6.firebasestorage.app")
-                        .build()
-
-                    val manualApp = FirebaseApp.initializeApp(this, options)
-                    Log.d(TAG, "✓ Firebase initialized with manual configuration")
-                    Log.d(TAG, "  App name: ${manualApp.name}")
-                    Log.d(TAG, "  Project ID: ${manualApp.options.projectId}")
+                    throw RuntimeException("Firebase initialization failed", e)
                 }
             } else {
                 Log.d(TAG, "Firebase already initialized via content provider")
