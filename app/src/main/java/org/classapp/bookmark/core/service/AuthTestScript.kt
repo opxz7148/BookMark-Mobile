@@ -102,9 +102,9 @@ object AuthTestScript {
                 subTitle = "A Subtitle",
                 description = "This is a test book created by AuthTestScript.",
                 isbn = "1234567890",
-                authors = "Test Author",
+                authors = listOf("Author One", "Author Two"),
                 pubDate = "2024-01-01",
-                genre = "Test Genre"
+                genre = listOf("Fiction", "Adventure"),
             )
             Log.d(TAG, "Book added successfully")
             Log.d(TAG, "========== BOOK SERVICE TEST PASSED ==========")
