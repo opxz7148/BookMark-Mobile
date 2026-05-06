@@ -6,7 +6,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.secrets.gradle.plugin)
+    alias(libs.plugins.hilt)
     id("com.google.gms.google-services")
+    id("kotlin-kapt")
 }
 
 // Load secrets from secrets.properties
@@ -24,14 +26,12 @@ val localProperties = Properties().apply {
 
 android {
     namespace = "org.classapp.bookmark"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "org.classapp.bookmark"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -69,8 +69,6 @@ android {
     }
     buildFeatures {
         compose = true
-    }
-    buildFeatures {
         buildConfig = true
     }
 }
@@ -105,5 +103,11 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
 }
 
+kapt {
+    correctErrorTypes = true
+}

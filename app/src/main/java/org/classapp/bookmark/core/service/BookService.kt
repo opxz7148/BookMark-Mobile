@@ -25,7 +25,7 @@ class BookService  @Inject constructor() {
     }
 
     // Create new book from user input
-    public fun createBookFromInput(
+    public suspend fun createBookFromInput(
         title: String,
         numberOfPage: Int,
         subTitle: String? = "",
@@ -36,6 +36,12 @@ class BookService  @Inject constructor() {
         genre: List<String>? = emptyList()
     ): Book {
         // Placeholder implementation
+
+        isbn?.let {
+            if (this.isBookInDBByISBN(it)) {
+                throw BookCreateFailedException("Book with ISBN $isbn already exists in database")
+            }
+        }
 
         val ref = bookCollectionRef.document() // Generate new document reference
 
@@ -51,14 +57,19 @@ class BookService  @Inject constructor() {
             genre = genre
         )
 
-        ref.set(book) // Save book to Firestore
-         .addOnFailureListener { e ->
-            throw BookCreateFailedException("Failed to create book: ${e.message}")
-        }
+        ref.set(book)
+            .addOnFailureListener { exception -> throw BookCreateFailedException("Failed to create book") }
+            .await()
+
         return book
     }
 
     public suspend fun createBookFromISBN(isbn: String): Book {
+
+        if (this.isBookInDBByISBN(isbn)) {
+            return this.getBookByISBNFromDB(isbn)
+        }
+
         val book = GoogleBookAPIInstance.fetchBookFromISBN(isbn)
             .getFirstID()
             ?.let {
@@ -88,7 +99,7 @@ class BookService  @Inject constructor() {
     }
 
     // Get book by ID (Search from DB)
-    public suspend fun getBookByIDFromDB(id: String): Book? {
+    public suspend fun getBookByIDFromDB(id: String): Book {
         val book = bookCollectionRef
             .document(id)
             .get()
@@ -98,9 +109,42 @@ class BookService  @Inject constructor() {
         return book ?: throw BookNotFoundException("Book with ID $id not found in database")
     }
 
+    public suspend fun isBookInDBByISBN(isbn: String): Boolean {
+
+        if (isbn == "") {
+            return false
+        }
+
+        return try {
+            val book = bookCollectionRef
+                .whereEqualTo("isbn", isbn)
+                .get()
+                .addOnFailureListener { exception -> throw FailedToFetchBook("Failed to check book existence in database by ISBN: ${exception.message}") }
+                .await()
+                .toObjects(Book::class.java)
+                .firstOrNull()
+            book != null
+        } catch (e: Exception) {
+            throw FailedToFetchBook("Error checking book existence in database by ISBN: ${e.message}")
+        }
+    }
+
     // Get batch of books by IDs (Search from DB)
-    public fun getBooksByIDsFromDB(ids: List<String>): List<Book> {
-        throw NotImplementedError("Batch fetching by IDs from database is not implemented yet")
+    public suspend fun getBooksByIDsFromDB(ids: List<String>): List<Book> {
+        val chunk = ids.chunked(30)
+        val books = mutableListOf<Book>()
+
+        for (idChunk in chunk) {
+            val batchBooks = bookCollectionRef
+                .whereIn("id", idChunk)
+                .get()
+                .addOnFailureListener { exception -> throw FailedToFetchBook("Failed to fetch books from database by IDs: ${exception.message}") }
+                .await()
+                .toObjects(Book::class.java)
+            books.addAll(batchBooks)
+        }
+
+        return books
     }
 
     // Get batch of books by ISBNs (Search from DB)
