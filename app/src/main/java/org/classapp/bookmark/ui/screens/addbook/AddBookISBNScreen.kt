@@ -1,5 +1,6 @@
 package org.classapp.bookmark.ui.screens.addbook
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,17 +21,10 @@ fun AddBookISBNScreen(
     val scope = rememberCoroutineScope()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = "Add via ISBN", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            text = "Enter the 10 or 13-digit ISBN from the book cover.",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -38,7 +32,7 @@ fun AddBookISBNScreen(
             value = isbnQuery,
             onValueChange = { isbnQuery = it },
             label = { Text("ISBN Number") },
-            placeholder = { Text("e.g. 9780134685991") },
+            placeholder = { Text("e.g. 9780441172719") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             enabled = !isLoading
@@ -48,6 +42,7 @@ fun AddBookISBNScreen(
             Text(
                 text = errorMessage!!,
                 color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
@@ -62,11 +57,12 @@ fun AddBookISBNScreen(
                 errorMessage = null
                 scope.launch {
                     try {
-                        // This uses the API key from secrets.properties through the service
+                        // Using the verified function name from your service
                         collectionService.addBookToCollectionByISBN(isbnQuery.trim())
                         onSuccess()
                     } catch (e: Exception) {
-                        errorMessage = "Book not found. Try manual entry or check your API key."
+                        Log.e("ISBN_ERROR", "Search failed: ${e.message}")
+                        errorMessage = "Error: ${e.localizedMessage ?: "Book not found"}"
                     } finally {
                         isLoading = false
                     }
@@ -74,9 +70,9 @@ fun AddBookISBNScreen(
             }
         ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
             } else {
-                Text("Search & Add Book")
+                Text("Search & Add to Collection")
             }
         }
     }
