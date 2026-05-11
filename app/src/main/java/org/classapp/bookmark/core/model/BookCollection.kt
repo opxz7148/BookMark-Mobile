@@ -1,5 +1,7 @@
 package org.classapp.bookmark.core.model
 
+import com.google.firebase.firestore.Exclude
+
 data class CollectionEntry (
     val id: String = "",
     val userId: String = "",
@@ -14,7 +16,7 @@ data class CollectionEntryDetail (
     val status: EntryStatus
 )
 
-enum class EntryStatus(displayName: String) {
+enum class EntryStatus(val displayName: String) {
     WANT_TO_READ("Want to read"),
     READING("Reading"),
     COMPLETED("Completed"),

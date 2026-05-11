@@ -40,7 +40,6 @@ class BookCollectionService @Inject constructor(
         if (!checkUserAuthentication()) {
             throw UserNotAuthenticatedException("User must be authenticated to add book to collection")
         }
-
         val newBook = bookService.createBookFromISBN(isbn)
 
         if (isBookInUserCollection(newBook.id)) {
@@ -58,6 +57,7 @@ class BookCollectionService @Inject constructor(
             .document()
             .set(collectionEntry)
             .addOnFailureListener { exception -> throw FailedToAddBookToCollectionException("Failed to add book to collection: ${exception.message}") }
+            .await()
     }
 
     suspend fun addBookToCollectionByInput(
@@ -90,7 +90,7 @@ class BookCollectionService @Inject constructor(
             pageReaded = 0,
             status = status ?: EntryStatus.WANT_TO_READ.name
         )
-        val ref = collectionEntryRef.document() // Generate new document reference
+        val ref = collectionEntryRef.document()
         ref.set(collectionEntry)
             .addOnFailureListener { throw FailedToAddBookToCollectionException("Failed to add book $title to the collection") }
             .await()
@@ -100,11 +100,16 @@ class BookCollectionService @Inject constructor(
         if (!checkUserAuthentication()) {
             throw UserNotAuthenticatedException("User must be authenticated to view collection")
         }
-        val entryList = collectionEntryRef
+        
+        val snapshot = collectionEntryRef
             .whereEqualTo("userId", userService.currentUserId)
             .get()
             .await()
-            .toObjects(CollectionEntry::class.java)
+
+        // Manually map document ID to the 'id' field to ensure it's not empty
+        val entryList = snapshot.documents.mapNotNull { doc ->
+            doc.toObject(CollectionEntry::class.java)?.copy(id = doc.id)
+        }
 
         return getEntryDetail(entryList)
     }
@@ -134,6 +139,10 @@ class BookCollectionService @Inject constructor(
 
         if (!checkUserAuthentication()) {
             throw UserNotAuthenticatedException("User must be authenticated to change reading status")
+        }
+
+        if (entryId.isEmpty()) {
+            throw FailedToUpdateEntryStatus("Invalid Entry ID")
         }
 
         val entryRef = collectionEntryRef.document(entryId)
@@ -172,6 +181,10 @@ class BookCollectionService @Inject constructor(
     suspend fun removeBookFromCollection(entryId: String) {
         if (!checkUserAuthentication()) {
             throw UserNotAuthenticatedException("User must be authenticated to remove book from collection")
+        }
+
+        if (entryId.isEmpty()) {
+            throw FailedToUpdateEntryStatus("Invalid Entry ID")
         }
 
         val entryRef = collectionEntryRef.document(entryId)
