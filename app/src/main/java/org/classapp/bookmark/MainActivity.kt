@@ -4,30 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import dagger.hilt.android.AndroidEntryPoint
 import org.classapp.bookmark.core.service.BookCollectionService
 import org.classapp.bookmark.core.service.UserService
 import org.classapp.bookmark.ui.screens.addbook.AddBookISBNScreen
+import org.classapp.bookmark.ui.screens.addbook.AddBookManualScreen
 import org.classapp.bookmark.ui.screens.auth.LoginRegisterScreen
 import org.classapp.bookmark.ui.screens.collection.BookCollectionScreen
 import org.classapp.bookmark.ui.screens.profile.ProfileScreen
@@ -58,7 +52,6 @@ class MainActivity : ComponentActivity() {
                     LoginRegisterScreen(
                         userService = userService,
                         onLoginSuccess = {
-                            // User state will update via flow
                         }
                     )
                 }
@@ -95,11 +88,63 @@ fun BookMarkApp(userService: UserService, collectionService: BookCollectionServi
                     .padding(innerPadding)
             ) {
                 when (currentDestination) {
-                    AppDestinations.COLLECTION -> BookCollectionScreen(collectionService)
-                    AppDestinations.ADD_BOOK -> AddBookISBNScreen(collectionService)
-                    AppDestinations.PROFILE -> ProfileScreen(userService)
+                    AppDestinations.COLLECTION -> {
+                        BookCollectionScreen(collectionService)
+                    }
+                    AppDestinations.ADD_BOOK -> {
+                        AddBookEntryWrapper(collectionService) {
+                            // After a book is added successfully, return to collection
+                            currentDestination = AppDestinations.COLLECTION
+                        }
+                    }
+                    AppDestinations.PROFILE -> {
+                        ProfileScreen(userService)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AddBookEntryWrapper(
+    collectionService: BookCollectionService,
+    onBackToCollection: () -> Unit
+) {
+    var useManualEntry by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Toggle Switch at the top
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterChip(
+                selected = !useManualEntry,
+                onClick = { useManualEntry = false },
+                label = { Text("ISBN Search") }
+            )
+            FilterChip(
+                selected = useManualEntry,
+                onClick = { useManualEntry = true },
+                label = { Text("Manual Entry") }
+            )
+        }
+
+        HorizontalDivider()
+
+        // Show the selected screen
+        if (useManualEntry) {
+            AddBookManualScreen(
+                collectionService = collectionService,
+                onSuccess = onBackToCollection
+            )
+        } else {
+            AddBookISBNScreen(
+                collectionService = collectionService,
+                onSuccess = onBackToCollection
+            )
         }
     }
 }
