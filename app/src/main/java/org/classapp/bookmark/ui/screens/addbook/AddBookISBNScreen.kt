@@ -25,12 +25,9 @@ fun AddBookISBNScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(text = "Add via ISBN", style = MaterialTheme.typography.headlineSmall)
         Text(
-            text = "Search by ISBN",
-            style = MaterialTheme.typography.headlineSmall
-        )
-        Text(
-            text = "Enter the 10 or 13-digit ISBN number found on the back of the book.",
+            text = "Enter the 10 or 13-digit ISBN from the book cover.",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(vertical = 8.dp)
         )
@@ -65,10 +62,11 @@ fun AddBookISBNScreen(
                 errorMessage = null
                 scope.launch {
                     try {
+                        // This uses the API key from secrets.properties through the service
                         collectionService.addBookToCollectionByISBN(isbnQuery.trim())
                         onSuccess()
                     } catch (e: Exception) {
-                        errorMessage = "Could not find book. Please check the ISBN or try manual entry."
+                        errorMessage = "Book not found. Try manual entry or check your API key."
                     } finally {
                         isLoading = false
                     }
@@ -76,10 +74,7 @@ fun AddBookISBNScreen(
             }
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
                 Text("Search & Add Book")
             }

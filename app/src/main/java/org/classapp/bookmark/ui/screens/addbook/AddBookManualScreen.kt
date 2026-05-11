@@ -19,7 +19,7 @@ fun AddBookManualScreen(
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.padding(16.dp).fillMaxSize()) {
-        Text("Add New Book", style = MaterialTheme.typography.headlineSmall)
+        Text("Manual Entry", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Book Title") }, modifier = Modifier.fillMaxWidth())
@@ -41,7 +41,6 @@ fun AddBookManualScreen(
                         onSuccess()
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        throw e
                     }
                 }
             }

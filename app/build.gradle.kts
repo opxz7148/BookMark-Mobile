@@ -74,6 +74,7 @@ android {
 }
 
 dependencies {
+    // 1. Android / UI Basics
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -83,19 +84,25 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
-    implementation(libs.javax.inject)
 
-    //Firebase
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    // 2. Dependency Injection (Hilt)
+    implementation(libs.javax.inject)
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
+
+    // 3. Firebase (Cleaned Up)
+    // ONLY ONE BoM call. We will use the modern non-ktx versions (they include Kotlin support now)
+    implementation(platform("com.google.firebase:firebase-bom:33.9.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.android.gms:play-services-safetynet:18.0.1")
-    implementation(libs.google.services)
+
+    // 4. Networking / Utils
     implementation(libs.adapter.guava)
     implementation(libs.converter.gson)
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 
-
+    // 5. Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -103,11 +110,10 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-
-    implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
 }
 
 kapt {
     correctErrorTypes = true
 }
+
+
