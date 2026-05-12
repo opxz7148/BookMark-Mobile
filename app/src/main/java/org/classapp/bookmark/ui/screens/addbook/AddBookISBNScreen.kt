@@ -1,10 +1,12 @@
 package org.classapp.bookmark.ui.screens.addbook
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.classapp.bookmark.core.service.BookCollectionService
@@ -14,43 +16,27 @@ fun AddBookISBNScreen(
     collectionService: BookCollectionService,
     onSuccess: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var isbnQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Add via ISBN", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            text = "Enter the 10 or 13-digit ISBN from the book cover.",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-
+        Text("Add via ISBN", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = isbnQuery,
             onValueChange = { isbnQuery = it },
-            label = { Text("ISBN Number") },
-            placeholder = { Text("e.g. 9780134685991") },
+            label = { Text("ISBN-10 or ISBN-13") },
+            placeholder = { Text("e.g. 9780441172719") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            enabled = !isLoading
+            enabled = !isLoading,
+            singleLine = true
         )
-
-        if (errorMessage != null) {
-            Text(
-                text = errorMessage!!,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -59,14 +45,13 @@ fun AddBookISBNScreen(
             enabled = isbnQuery.isNotBlank() && !isLoading,
             onClick = {
                 isLoading = true
-                errorMessage = null
                 scope.launch {
                     try {
-                        // This uses the API key from secrets.properties through the service
                         collectionService.addBookToCollectionByISBN(isbnQuery.trim())
-                        onSuccess()
+                        Toast.makeText(context, "Book Added Successfully!", Toast.LENGTH_SHORT).show()
+                        onSuccess() // Switches tab back to Collection
                     } catch (e: Exception) {
-                        errorMessage = "Book not found. Try manual entry or check your API key."
+                        Toast.makeText(context, "Error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                     } finally {
                         isLoading = false
                     }
@@ -74,9 +59,9 @@ fun AddBookISBNScreen(
             }
         ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
             } else {
-                Text("Search & Add Book")
+                Text("Search & Add to Library")
             }
         }
     }

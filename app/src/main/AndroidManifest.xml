@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".BookMarkApplication"
@@ -14,14 +16,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BookMark">
 
-        <!-- Firebase Init Provider - Ensures Firebase auto-initializes at app startup -->
-        <provider
-            android:name="com.google.firebase.provider.FirebaseInitProvider"
-            android:authorities="${applicationId}.firebaseinitprovider"
-            android:exported="false"
-            android:initOrder="100"
-            tools:node="merge" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -29,10 +23,10 @@
             android:theme="@style/Theme.BookMark">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
     </application>
 
 </manifest>
