@@ -1,6 +1,7 @@
 package org.classapp.bookmark.ui.screens.collection
 
 import android.widget.Toast
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,20 +23,39 @@ import org.classapp.bookmark.core.model.CollectionEntryDetail
 import org.classapp.bookmark.core.model.EntryStatus
 import org.classapp.bookmark.core.service.BookCollectionService
 
+enum class SortOption(val label: String) {
+    TITLE_ASC("Title (A-Z)"),
+    TITLE_DESC("Title (Z-A)"),
+    AUTHOR_ASC("Writer (A-Z)"),
+    PUB_DATE_DESC("Newest Published"),
+    DATE_ADDED_DESC("Recently Added")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookCollectionScreen(collectionService: BookCollectionService) {
+    // 1. STATE DEFINITIONS
     var collectionDetails by remember { mutableStateOf<List<CollectionEntryDetail>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var editingDetail by remember { mutableStateOf<CollectionEntryDetail?>(null) }
+    var editingDetail by remember { mutableStateOf<CollectionEntryDetail?>(null) } // Controls the Dialog
+
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedGenre by remember { mutableStateOf("All") }
+    var sortOrder by remember { mutableStateOf(SortOption.DATE_ADDED_DESC) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showFilterMenu by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // 2. REFRESH LOGIC
     fun refreshCollection() {
         scope.launch {
             isLoading = true
             try {
                 collectionDetails = collectionService.getUserCollectionEntries()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to load: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
                 isLoading = false
             }
@@ -44,38 +64,88 @@ fun BookCollectionScreen(collectionService: BookCollectionService) {
 
     LaunchedEffect(Unit) { refreshCollection() }
 
+    // 3. FILTERING & SORTING
+    val allGenres = remember(collectionDetails) {
+        listOf("All") + collectionDetails.flatMap { it.book.genre ?: emptyList() }.distinct().sorted()
+    }
+
+    val processedList = remember(collectionDetails, searchQuery, selectedGenre, sortOrder) {
+        var list = collectionDetails.filter {
+            (it.book.title.contains(searchQuery, ignoreCase = true) ||
+                    it.book.authors?.any { a -> a.contains(searchQuery, ignoreCase = true) } == true) &&
+                    (selectedGenre == "All" || it.book.genre?.contains(selectedGenre) == true)
+        }
+        when (sortOrder) {
+            SortOption.TITLE_ASC -> list = list.sortedBy { it.book.title }
+            SortOption.TITLE_DESC -> list = list.sortedByDescending { it.book.title }
+            SortOption.AUTHOR_ASC -> list = list.sortedBy { it.book.authors?.firstOrNull() ?: "" }
+            SortOption.PUB_DATE_DESC -> list = list.sortedByDescending { it.book.pubDate ?: "" }
+            SortOption.DATE_ADDED_DESC -> list = list.sortedByDescending { it.entry.id }
+        }
+        list
+    }
+
+    // 4. UI LAYOUT
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("My Library", fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = { refreshCollection() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            Column {
+                TopAppBar(
+                    title = { Text("My Library", fontWeight = FontWeight.Bold) },
+                    actions = {
+                        IconButton(onClick = { showSortMenu = true }) { Icon(Icons.Default.Sort, "Sort") }
+                        IconButton(onClick = { showFilterMenu = true }) { Icon(Icons.Default.FilterList, "Filter") }
+                        IconButton(onClick = { refreshCollection() }) { Icon(Icons.Default.Refresh, "Refresh") }
+                    }
+                )
+
+                if (isLoading) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
+                }
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    placeholder = { Text("Search title or author...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    shape = MaterialTheme.shapes.medium,
+                    singleLine = true
+                )
+
+                DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
+                    SortOption.entries.forEach { option ->
+                        DropdownMenuItem(text = { Text(option.label) }, onClick = { sortOrder = option; showSortMenu = false })
                     }
                 }
-            )
+                DropdownMenu(expanded = showFilterMenu, onDismissRequest = { showFilterMenu = false }) {
+                    allGenres.forEach { genre ->
+                        DropdownMenuItem(
+                            text = { Text(genre) },
+                            onClick = { selectedGenre = genre; showFilterMenu = false },
+                            trailingIcon = { if (genre == selectedGenre) Icon(Icons.Default.Check, null) }
+                        )
+                    }
+                }
+            }
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            if (isLoading && collectionDetails.isEmpty()) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (!isLoading && collectionDetails.isEmpty()) {
-                Text("Library is empty.", modifier = Modifier.align(Alignment.Center))
+            if (!isLoading && processedList.isEmpty()) {
+                Text("No books found.", modifier = Modifier.align(Alignment.Center))
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(collectionDetails) { detail ->
+                    items(processedList) { detail ->
                         BookCollectionCard(
                             detail = detail,
-                            onEdit = { editingDetail = detail },
+                            onEdit = { editingDetail = detail }, // THIS triggers the dialog
                             onDelete = {
                                 scope.launch {
                                     collectionService.removeBookFromCollection(detail.entry.id)
                                     refreshCollection()
-                                    Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
@@ -85,6 +155,7 @@ fun BookCollectionScreen(collectionService: BookCollectionService) {
         }
     }
 
+    // 5. THE DIALOG (Must be outside Scaffold but inside the Screen Composable)
     editingDetail?.let { detail ->
         EditEntryDialog(
             detail = detail,
@@ -94,7 +165,7 @@ fun BookCollectionScreen(collectionService: BookCollectionService) {
                     collectionService.updateReadingStatus(detail.entry.id, status, pages)
                     editingDetail = null
                     refreshCollection()
-                    Toast.makeText(context, "Saved Successfully!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Update successful!", Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -103,42 +174,53 @@ fun BookCollectionScreen(collectionService: BookCollectionService) {
 
 @Composable
 fun BookCollectionCard(detail: CollectionEntryDetail, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
+    var expanded by remember { mutableStateOf(false) }
+    val isManual = detail.book.isbn == "MANUAL" || detail.book.isbn.isNullOrBlank()
+
+    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(2.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = detail.book.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-
-                    // Source Tag Logic
-                    val isManual = detail.book.isbn.isNullOrBlank() || detail.book.isbn == "0"
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(if (isManual) "Manual Entry" else "ISBN: ${detail.book.isbn}") },
-                        leadingIcon = { Icon(if (isManual) Icons.Default.Edit else Icons.Default.Search, null, Modifier.size(16.dp)) }
-                    )
-                }
-                Row {
-                    IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary) }
-                    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
-                }
-            }
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = getStatusColor(detail.status), shape = MaterialTheme.shapes.extraSmall) {
                     Text(
-                        text = detail.status.displayName.uppercase(),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold
+                        text = if (isManual) "Added by: ${detail.book.authors?.firstOrNull() ?: "User"}"
+                        else detail.book.authors?.joinToString() ?: "Unknown Author",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary
                     )
                 }
-                Text("${detail.entry.pageReaded ?: 0} / ${detail.book.numberOfPage ?: 0} pages", style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null)
+                }
             }
 
-            val progress = ((detail.entry.pageReaded ?: 0).toFloat() / (if ((detail.book.numberOfPage ?: 0) <= 0) 1 else detail.book.numberOfPage!!).toFloat()).coerceIn(0f, 1f)
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Text("Published: ${detail.book.pubDate ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+                    Text("Genre: ${detail.book.genre?.joinToString() ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+                    Text("ISBN: ${detail.book.isbn ?: "Manual Entry"}", style = MaterialTheme.typography.bodySmall)
+                    Text("Description: ${detail.book.description ?: "No description available."}",
+                        style = MaterialTheme.typography.bodySmall, maxLines = 3)
+                }
+            }
+
+            val total = if ((detail.book.numberOfPage ?: 0) <= 0) 1 else detail.book.numberOfPage!!
+            val progress = ((detail.entry.pageReaded ?: 0).toFloat() / total.toFloat()).coerceIn(0f, 1f)
+
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Surface(color = getStatusColor(detail.status), shape = MaterialTheme.shapes.extraSmall) {
+                    Text(detail.status.displayName, modifier = Modifier.padding(4.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                }
+                Text("${detail.entry.pageReaded} / ${detail.book.numberOfPage} pages", style = MaterialTheme.typography.bodySmall)
+            }
+
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), strokeCap = StrokeCap.Round)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                // IMPORTANT: This triggers the onEdit() passed from parent
+                TextButton(onClick = onEdit) { Text("Update Progress") }
+                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+            }
         }
     }
 }
@@ -154,22 +236,34 @@ fun EditEntryDialog(detail: CollectionEntryDetail, onDismiss: () -> Unit, onConf
         title = { Text("Update Progress") },
         text = {
             Column {
-                Text(detail.book.title, style = MaterialTheme.typography.titleSmall)
-                FlowRow(modifier = Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(detail.book.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     EntryStatus.entries.forEach { status ->
-                        FilterChip(selected = selectedStatus == status, onClick = { selectedStatus = status }, label = { Text(status.displayName) })
+                        FilterChip(
+                            selected = selectedStatus == status,
+                            onClick = { selectedStatus = status },
+                            label = { Text(status.displayName) }
+                        )
                     }
                 }
+
                 OutlinedTextField(
                     value = pageReaded,
                     onValueChange = { if (it.all { c -> c.isDigit() }) pageReaded = it },
                     label = { Text("Pages Read") },
+                    suffix = { Text("/ ${detail.book.numberOfPage}") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    suffix = { Text("/ ${detail.book.numberOfPage}") }
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(selectedStatus, pageReaded.toIntOrNull() ?: 0) }) { Text("Save") } },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedStatus, pageReaded.toIntOrNull() ?: 0) }) {
+                Text("Save Changes")
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
